@@ -122,7 +122,17 @@ eval_results/
 
 ## 📣 Citation
 
-> 📄 **Coming soon:** Citation information for our paper will be added when available.
+```
+@misc{wei2025tiifbenchdoest2imodel,
+      title={TIIF-Bench: How Does Your T2I Model Follow Your Instructions?}, 
+      author={Xinyu Wei and Jinrui Zhang and Zeqing Wang and Hongyang Wei and Zhen Guo and Lei Zhang},
+      year={2025},
+      eprint={2506.02161},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2506.02161}, 
+}
+```
 
 ## 🙋‍♂️ Questions?
 
