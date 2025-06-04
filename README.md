@@ -1,10 +1,10 @@
 # <img src="assets/logo_transparent_bg.png" width="60px" align="center"> TIIF-Bench: How Does Your T2I Model Follow Your Instructions?
 
-Official repository for the paper ["TIIF-Bench: How Does Your T2I Model Follow Your Instructions?"](https://github.com/A113N-W3I/TIIF-Bench).
+Official repository for the paper ["TIIF-Bench: How Does Your T2I Model Follow Your Instructions?"](https://www.arxiv.org/abs/2506.02161).
 
 ## 🔥News
 - **[2025.05]** 🔥 We release the generation results of **closed-source** models on the TIIF-Bench **testmini** subset on [🤗Hugging Face](https://huggingface.co/datasets/A113NW3I/TIIF-Bench-Data).
-- **[2025.05]** 🔥 We release all generation prompts (used for the evaluated T2I models) and evaluation prompts (used for evaluation models such as GPT-4o) of **TIIF-Bench** in the [`./prompts`](./prompts) directory.
+- **[2025.05]** 🔥 We release all generation prompts (used for the evaluated T2I models) and evaluation prompts (used for evaluation models such as GPT-4o) of **TIIF-Bench** in the [`./data`](./prompts) directory.
 
 ## 🗂️ Data Structure
 
@@ -97,6 +97,28 @@ eval_results/
    vllm serve --model checkpoints/Qwen2.5-VL-72B-Instruct --port 8000 --host 0.0.0.0 --dtype bfloat16
    ```
 2. **Update your evaluation command to use the Qwen2.5-VL endpoint.**
+
+##  Evaluation of Text Rendering
+
+1. **Preparation:**
+   ```bash
+   pip install paddlepaddle-gpu
+   pip install paddleocr
+   python eval/paddleocr_models.py
+   ```
+  You need to merge the ground truth words (e.g., ["drink","tea","eat"]) of the corresponding image prompts (short/long) as the "text" field into the OCR-generated JSON file, with the following format:
+   ```
+  {
+  "image_name": "0.png",
+  "short_image_ocr_results": [],
+  "long_image_ocr_results": [],
+  "text": []
+  }
+   ```
+1. **Run evaluation:**
+   ```bash
+   python eval/cal_gned_and_recall_models.py
+   ```
 
 ## 📣 Citation
 
