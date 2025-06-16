@@ -114,4 +114,12 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 
+# Models
+ckpts/
+eval_models/
+
+# Logs
+output.txt
+err.txt
+
 # End of file

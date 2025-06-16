@@ -240,7 +240,7 @@ def main():
     parser.add_argument('--model', required=True, help="Name of the T2I model to use.")
     parser.add_argument('--specific_file',type=str, default=None)
     parser.add_argument('--input_folder', type=str, default='data/testmini_eval_prompts', help="Path to the folder containing JSONL files.")
-    parser.add_argument('--output_folder', type=str, default='./outputs', help="Path to the folder where generated images will be saved.")
+    parser.add_argument('--output_folder', type=str, default='./output', help="Path to the folder where generated images will be saved.")
 
     # 解析命令行参数
     args = parser.parse_args()

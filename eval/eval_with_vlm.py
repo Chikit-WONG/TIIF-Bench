@@ -71,34 +71,73 @@ def load_jsonl_lines(jsonl_file):
     return lines
 
 
-def generate_with_prompt(prompt, image_path, client, model='gpt-4o'):
+# 用GPT4-o进行评估
+# def generate_with_prompt(prompt, image_path, client, model='gpt-4o'):
+#     import base64
+#     with open(image_path, "rb") as image_file:
+#         image_data = base64.b64encode(image_file.read()).decode('utf-8')
+    
+#     messages = [
+#         {"role": "system", "content": "You are a professional image critic."},
+#         {
+#             "role": "user", 
+#             "content": [
+#                 {"type": "text", "text": prompt},
+#                 {
+#                     "type": "image_url",
+#                     "image_url": {
+#                         "url": f"data:image/png;base64,{image_data}"
+#                     }
+#                 }
+#             ]
+#         }
+#     ]
+
+#     completion = client.chat.completions.create(
+#         model=model,
+#         messages=messages,
+#         temperature=1.0
+#     )
+    
+#     return completion.choices[0].message.content
+
+
+# 用Qwen2.5-VL-7B-Instruct进行评估
+import requests
+
+def generate_with_prompt(prompt, image_path, base_url, model='Qwen2.5-VL-7B-Instruct'):
     import base64
     with open(image_path, "rb") as image_file:
         image_data = base64.b64encode(image_file.read()).decode('utf-8')
-    
-    messages = [
-        {"role": "system", "content": "You are a professional image critic."},
-        {
-            "role": "user", 
-            "content": [
-                {"type": "text", "text": prompt},
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:image/png;base64,{image_data}"
-                    }
-                }
-            ]
-        }
-    ]
 
-    completion = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=1.0
-    )
-    
-    return completion.choices[0].message.content
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": "You are a professional image critic."},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{image_data}"
+                        }
+                    }
+                ]
+            }
+        ],
+        "temperature": 1.0,
+    }
+
+    response = requests.post(f"{base_url}/v1/chat/completions", headers=headers, json=payload)
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"]
+
 
 def format_questions_prompt(raw_prompt, questions):
     question_texts = [item.strip() for item in questions]
@@ -175,10 +214,11 @@ def extract_yes_no(model_output, questions):
     return preds
 
 def main(args):
-    client = openai.OpenAI(
-        api_key=args.api_key,
-        base_url=args.base_url
-    )
+    # 用GPT-4o进行评估时使用
+    # client = openai.OpenAI(
+    #     api_key=args.api_key,
+    #     base_url=args.base_url
+    # )
 
     tasks = collect_tasks(args.jsonl_dir, args.image_dir, args.eval_model, args.output_dir, args.sample_idx_file, args.postfix)
     print(f"Total tasks to process: {len(tasks)}")
@@ -192,7 +232,11 @@ def main(args):
                 questions = item.get("yn_question_list", [])
                 gt_answers = item.get("yn_answer_list", [])
                 prompt = format_questions_prompt(raw_prompt, questions)
-                model_output = generate_with_prompt(prompt, task["img_path"], client, model=args.model)
+                # 用GPT-4o进行评估时使用
+                # model_output = generate_with_prompt(prompt, task["img_path"], client, model=args.model)
+                
+                # 用Qwen2.5-VL-7B-Instruct进行评估时使用
+                model_output = generate_with_prompt(prompt, task["img_path"], base_url=args.base_url, model=args.model)
                 print(model_output)
                 model_pred = extract_yes_no(model_output, questions)
                 result = {
