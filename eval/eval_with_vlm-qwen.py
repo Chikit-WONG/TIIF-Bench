@@ -8,6 +8,7 @@ import re
 from tqdm import tqdm
 import math
 import random
+import socket
 
 raw_prompt = '''
 You are tasked with conducting a careful examination of the provided image. Based on the content of the image, please answer the following yes or no questions:
@@ -71,78 +72,38 @@ def load_jsonl_lines(jsonl_file):
     return lines
 
 
-# 用GPT4-o进行评估
-# def generate_with_prompt(prompt, image_path, client, model='gpt-4o'):
-#     import base64
-#     with open(image_path, "rb") as image_file:
-#         image_data = base64.b64encode(image_file.read()).decode('utf-8')
-    
-#     messages = [
-#         {"role": "system", "content": "You are a professional image critic."},
-#         {
-#             "role": "user", 
-#             "content": [
-#                 {"type": "text", "text": prompt},
-#                 {
-#                     "type": "image_url",
-#                     "image_url": {
-#                         "url": f"data:image/png;base64,{image_data}"
-#                     }
-#                 }
-#             ]
-#         }
-#     ]
-
-#     completion = client.chat.completions.create(
-#         model=model,
-#         messages=messages,
-#         temperature=1.0
-#     )
-    
-#     return completion.choices[0].message.content
-
-
-# 用Qwen2.5-VL-7B-Instruct进行评估
-import requests
-
-def generate_with_prompt(prompt, image_path, base_url, model='Qwen2.5-VL-7B-Instruct'):
+def generate_with_prompt(prompt, image_path, client, model='gpt-4o'):
     import base64
     with open(image_path, "rb") as image_file:
         image_data = base64.b64encode(image_file.read()).decode('utf-8')
-
-    headers = {
-        "Content-Type": "application/json",
-    }
-
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": "You are a professional image critic."},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{image_data}"
-                        }
+    
+    messages = [
+        {"role": "system", "content": "You are a professional image critic."},
+        {
+            "role": "user", 
+            "content": [
+                {"type": "text", "text": prompt},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{image_data}"
                     }
-                ]
-            }
-        ],
-        "temperature": 1.0,
-    }
+                }
+            ]
+        }
+    ]
 
-    response = requests.post(f"{base_url}/v1/chat/completions", headers=headers, json=payload)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+    completion = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=1.0
+    )
+    
+    return completion.choices[0].message.content
 
-
-def format_questions_prompt(raw_prompt, questions):
+def format_questions_prompt(prompt_template, questions):
     question_texts = [item.strip() for item in questions]
     formatted_questions = "\n".join(question_texts)
-    prompt_template = random.choice([raw_prompt, raw_prompt_1, raw_prompt_2])
     formatted_prompt = prompt_template.replace("##YNQuestions##", formatted_questions)
     return formatted_prompt
 
@@ -165,6 +126,7 @@ def collect_tasks(jsonl_dir, image_dir, eval_model, output_dir, sample_idx_file=
         with open(sample_idx_file, 'r') as f:
             sample_idx = json.load(f)
     for jsonl_file in jsonl_files:
+        # 提取 jsonl 文件名（如 '2d_spatial_relation.jsonl' → '2d_spatial_relation'）
         attribute = os.path.splitext(os.path.basename(jsonl_file))[0]
         lines = load_jsonl_lines(jsonl_file)
         attr_type = lines[0]['type']
@@ -214,49 +176,89 @@ def extract_yes_no(model_output, questions):
     return preds
 
 def main(args):
-    # 用GPT-4o进行评估时使用
-    # client = openai.OpenAI(
-    #     api_key=args.api_key,
-    #     base_url=args.base_url
-    # )
+    
+    # ✅ 添加等待函数
+    def wait_for_port(host: str, port: int, timeout: float = 3600.0, check_interval: float = 2.0):
+        print(f"🔍 Waiting for vLLM server at {host}:{port} ...")
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                with socket.create_connection((host, port), timeout=5):
+                    print("✅ vLLM server is up!")
+                    return True
+            except (OSError, ConnectionRefusedError):
+                time.sleep(check_interval)
+        raise TimeoutError(f"❌ Timeout: vLLM server at {host}:{port} did not respond within {timeout} seconds.")
+
+    # ✅ 等待本地 vLLM 端口启动完成
+    wait_for_port("localhost", 8000)
+    
+    client = openai.OpenAI(
+        api_key=args.api_key,
+        base_url=args.base_url
+    )
 
     tasks = collect_tasks(args.jsonl_dir, args.image_dir, args.eval_model, args.output_dir, args.sample_idx_file, args.postfix)
     print(f"Total tasks to process: {len(tasks)}")
 
     retry_tasks = []
+    
+    success_count = 0
+    failure_count = 0
+    
     while tasks:
         retry_tasks.clear()
-        for task in tqdm(tasks):
-            try:
-                item = task["jsonl_line"]
-                questions = item.get("yn_question_list", [])
-                gt_answers = item.get("yn_answer_list", [])
-                prompt = format_questions_prompt(raw_prompt, questions)
-                # 用GPT-4o进行评估时使用
-                # model_output = generate_with_prompt(prompt, task["img_path"], client, model=args.model)
-                
-                # 用Qwen2.5-VL-7B-Instruct进行评估时使用
-                model_output = generate_with_prompt(prompt, task["img_path"], base_url=args.base_url, model=args.model)
-                print(model_output)
-                model_pred = extract_yes_no(model_output, questions)
-                result = {
-                    "attribute": task["attribute"],
-                    "desc": task["desc"],
-                    "jsonl_file": os.path.basename(task["jsonl_file"]),
-                    "line_idx": task["line_idx"],
-                    "questions": questions,
-                    "gt_answers": gt_answers,
-                    "model_pred": model_pred,
-                    "model_output": model_output
-                }
-                with open(task["out_path"], "w", encoding="utf-8") as fout:
-                    json.dump(result, fout, ensure_ascii=False, indent=2)
-                print(f"Saved: {task['out_path']}")
+        with tqdm(tasks) as pbar:
+            for task in pbar:
+                try:
+                    # 左侧描述：当前维度/描述类型/编号
+                    attr = task["attribute"]
+                    desc = task["desc"]
+                    idx = task["line_idx"]
+                    eval_model = args.eval_model
+                    pbar.set_description(f"{eval_model}/{attr}/{desc} - idx {idx}")
 
-            except Exception as e:
-                print(f"[Error] {task['img_path']} : {e}")
-                retry_tasks.append(task)
-                time.sleep(2)
+                    # 1. 提取问题与答案
+                    item = task["jsonl_line"]
+                    questions = item.get("yn_question_list", [])
+                    gt_answers = item.get("yn_answer_list", [])
+                    
+                    # 2. 构造 prompt 并发送请求
+                    prompt_template = random.choice([raw_prompt, raw_prompt_1, raw_prompt_2]) # 随机选择一个 prompt 模板
+                    prompt = format_questions_prompt(prompt_template, questions)
+                    model_output = generate_with_prompt(prompt, task["img_path"], client, model=args.model)
+                    print(model_output)
+                    model_pred = extract_yes_no(model_output, questions)
+                    
+                    # 3. 保存结果
+                    result = {
+                        "attribute": task["attribute"],
+                        "desc": task["desc"],
+                        "jsonl_file": os.path.basename(task["jsonl_file"]),
+                        "line_idx": task["line_idx"],
+                        "questions": questions,
+                        "gt_answers": gt_answers,
+                        "model_pred": model_pred,
+                        "model_output": model_output
+                    }
+                    with open(task["out_path"], "w", encoding="utf-8") as fout:
+                        json.dump(result, fout, ensure_ascii=False, indent=2)
+                    print(f"Saved: {task['out_path']}")
+                    
+                    success_count += 1
+
+                except Exception as e:
+                    print(f"[Error] {task['img_path']} : {e}")
+                    failure_count += 1
+                    retry_tasks.append(task)
+                    time.sleep(2)
+                    
+                # 右侧 postfix：实时状态指标
+                pbar.set_postfix({
+                    "Success": success_count,
+                    "Fail": failure_count,
+                    "Total": success_count + failure_count
+                })
         if retry_tasks:
             print(f"Retrying {len(retry_tasks)} failed tasks...")
             time.sleep(5)
@@ -266,11 +268,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--jsonl_dir", type=str, required=True, help="Directory containing jsonl files")
     parser.add_argument("--image_dir", type=str, required=True, help="Directory containing images")
-    parser.add_argument("--eval_model", type=str, required=True, help="name of the eval model")
+    parser.add_argument("--eval_model", type=str, required=True, help="name of the eval model") # 被评估的生图模型
     parser.add_argument("--output_dir", type=str, required=True, help="Directory to save output json files")
     parser.add_argument("--api_key", type=str, default="sk-xxx", help="OpenAI API key")
     parser.add_argument("--base_url", type=str, default="https://api.openai.com/v1", help="OpenAI API base url")
-    parser.add_argument("--model", type=str, default="gpt-4o", help="Model name")
+    parser.add_argument("--model", type=str, default="gpt-4o", help="Model name") # 用来评估生图模型的模型
     parser.add_argument("--sample_idx_file", type=str, default=None, help="File containing sample indices")
     parser.add_argument("--postfix", type=str, default="")
 

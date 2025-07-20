@@ -121,5 +121,10 @@ eval_models/
 # Logs
 output.txt
 err.txt
+output-*.txt
+err-*.txt
+
+# Temporary files
+temp/
 
 # End of file

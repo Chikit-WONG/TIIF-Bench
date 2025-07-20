@@ -84,7 +84,7 @@ def main():
                     try:
                         with open(file_path, 'r', encoding='utf-8') as f:
                             data = json.load(f)
-                            gt_answers = data.get('gt_answers', [])
+                            gt_answers = data.get('gt_answers', []) # gt = ground truth（真实标签/标准答案）
                             model_pred = data.get('model_pred', [])
                             for gt, pred in zip(gt_answers, model_pred):
                                 total_questions += 1
@@ -138,16 +138,16 @@ def main():
     count_df = build_df('total')
     correct_df = build_df('correct')
 
-    # Keep two decimal places
+    # Format each value to keep four decimal places
     accuracy_df = accuracy_df.applymap(lambda x: f"{x:.4f}" if x is not None and x != "" else "")
     count_df = count_df.applymap(lambda x: f"{x:.4f}" if x is not None and x != "" else "")
     correct_df = correct_df.applymap(lambda x: f"{x:.4f}" if x is not None and x != "" else "")
 
     # Sort by Mean_Accuracy
     sort_index = pd.to_numeric(accuracy_df['Mean_Accuracy'], errors='coerce').sort_values(ascending=False).index
-    accuracy_df = accuracy_df.loc[sort_index]
-    count_df = count_df.loc[sort_index]
-    correct_df = correct_df.loc[sort_index]
+    accuracy_df = accuracy_df.loc[sort_index] # accuracy_df = accuracy_df.reindex(sort_index)
+    count_df = count_df.loc[sort_index] # count_df = count_df.reindex(sort_index)
+    correct_df = correct_df.loc[sort_index] # correct_df = correct_df.reindex(sort_index)
 
     print("\nWriting to Excel file...")
     with pd.ExcelWriter(OUTPUT_EXCEL, engine='openpyxl') as writer:

@@ -54,6 +54,7 @@ class SANA15(T2IModel):
 
 class SANA(T2IModel):
     def _build_pipe(self):
+        from diffusers import SanaPipeline
         pipe = SanaPipeline.from_pretrained(self.ckpt_path, torch_dtype=torch.bfloat16)
         pipe.vae.to(torch.bfloat16)
         pipe.text_encoder.to(torch.bfloat16)
@@ -197,10 +198,16 @@ def process_jsonl_files(input_folder, output_folder, model_name, specific_file):
 
     # 获取所有jsonl文件
 
-    if specific_file is not None:
-        jsonl_files = [os.path.join(input_folder, specific_file)]
+    # if specific_file is not None:
+    #     jsonl_files = [os.path.join(input_folder, specific_file)]
+    # else:
+    #     jsonl_files = glob.glob(os.path.join(input_folder, '*.jsonl'))
+    
+    if specific_file:
+        jsonl_files = [os.path.join(input_folder, f) for f in specific_file]
     else:
         jsonl_files = glob.glob(os.path.join(input_folder, '*.jsonl'))
+
 
 
     for jsonl_file in jsonl_files:
@@ -238,7 +245,9 @@ def main():
     # 设置命令行参数
     parser = argparse.ArgumentParser(description="Generate images from JSONL files using a specified T2I model.")
     parser.add_argument('--model', required=True, help="Name of the T2I model to use.")
-    parser.add_argument('--specific_file',type=str, default=None)
+    # parser.add_argument('--specific_file',type=str, default=None)
+    # 使得specific_file参数可以指定多个文件
+    parser.add_argument('--specific_file', type=str, nargs='*', default=None, help="List of specific jsonl files to process (e.g. --specific_file file1.jsonl file2.jsonl)")
     parser.add_argument('--input_folder', type=str, default='data/testmini_eval_prompts', help="Path to the folder containing JSONL files.")
     parser.add_argument('--output_folder', type=str, default='./output', help="Path to the folder where generated images will be saved.")
 

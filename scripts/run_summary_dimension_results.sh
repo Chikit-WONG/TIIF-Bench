@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH -p debug        # 指定GPU队列
-#SBATCH -o output.txt  # 指定作业标准输出文件，%j为作业号  SBATCH -o output_%j.txt
-#SBATCH -e err.txt    # 指定作业标准错误输出文件  SBATCH -e err_%j.txt
+#SBATCH -o ./temp/output.txt  # 指定作业标准输出文件，%j为作业号  SBATCH -o output_%j.txt
+#SBATCH -e ./temp/err.txt    # 指定作业标准错误输出文件  SBATCH -e err_%j.txt
 #SBATCH -n 1            # 指定CPU总核心数
 #SBATCH --gres=gpu:1    # 指定GPU卡数
-#SBATCH -D .        # 指定作业执行路径为当前目录
+#SBATCH -D .            # 指定作业执行路径为当前目录
 
 # 加载CUDA模块（如果需要）
 module load cuda/12.1
@@ -21,12 +21,14 @@ echo "[INFO] LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
 echo "[DEBUG] Verifying libcudnn_graph.so presence:"
 ls -l $CONDA_PREFIX/lib/libcudnn_graph.so*
 
+export OUTPUT_DIR=eval_results
+
 # Job 执行主体
 echo "Job started at $(date)"
-python ./eval/inference_t2i_models.py --model flux1_dev \
-       --input_folder data/testmini_prompts \
-       --output_folder ./output \
-       --specific_file 2d_spatial_relation_prompts.jsonl
+python ./eval/summary_dimension_results.py \
+    --input_excel $OUTPUT_DIR/result_summary.xlsx \
+    --output_txt  $OUTPUT_DIR/result_summary_dimension.txt
+
 echo "Job ended at $(date)"
 
 # 退出环境
