@@ -2,6 +2,7 @@ import os
 import json
 from paddleocr import PaddleOCR
 from tqdm import tqdm
+import argparse
 
 # def extract_text_with_paddleocr(image_path, ocr_engine):
 #     # result = ocr_engine.ocr(image_path, cls=False)
@@ -126,9 +127,15 @@ def process_all_folders(base_dir, output_base_dir):
             output_json_path = os.path.join(output_model_dir, f"{data_type}.json")
 
             process_images(short_prompt_dir, long_prompt_dir, output_json_path, model_name)
+            
+def main():
+    parser = argparse.ArgumentParser(description="Process PaddleOCR results.")
+    parser.add_argument('--base_dir', type=str, default='./output', help='Directory containing pictures with text.')
+    parser.add_argument('--output_base_dir', type=str, default='./eval_results/paddleocr_results', help='Output directory for results')
+    
+    args = parser.parse_args()
+
+    process_all_folders(args.base_dir, args.output_base_dir)
 
 if __name__ == "__main__":
-    base_dir = "./output"
-    output_base_dir="./eval_results/paddleocr_results"
-
-    process_all_folders(base_dir,output_base_dir)
+    main()

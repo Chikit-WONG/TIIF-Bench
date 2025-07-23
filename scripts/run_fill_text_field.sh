@@ -24,8 +24,9 @@ ls -l $CONDA_PREFIX/lib/libcudnn_graph.so*
 
 # Job 执行主体
 echo "Job started at $(date)"
-python ./eval/paddleocr_models.py --base_dir ./output \
-       --output_base_dir ./eval_results/paddleocr_results
+python ./eval/fill_text_field.py --ocr_json ./eval_results/paddleocr_results \
+        --prompts_jsonl ./data/testmini_prompts/text_prompts.jsonl \
+        --output ./eval_results/paddleocr_results
 
 echo "Job ended at $(date)"
 
