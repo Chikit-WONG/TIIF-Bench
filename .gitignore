@@ -127,4 +127,7 @@ err-*.txt
 # Temporary files
 temp/
 
+# Test files
+test_cal_gned_and_recall_models.py
+
 # End of file

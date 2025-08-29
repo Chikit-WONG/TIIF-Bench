@@ -136,7 +136,8 @@ def process_json_file(file_path):
     avg_recall_enhanced = sum(all_recall_enhanced_image)/len(all_recall_enhanced_image) if all_recall_enhanced_image else 0
 
     return {
-        "file_name": os.path.basename(file_path),
+        # "file_name": os.path.basename(file_path),
+        "file_path": file_path,
         "GNED_score_short": avg_nled_simple,
         "GNED_score_long": avg_nled_enhanced,
         "Recall_score_short": avg_recall_simple,
@@ -144,18 +145,39 @@ def process_json_file(file_path):
     }
 
 if __name__ == "__main__":
-    folder_path = '/mnt/data/cpfs/cfps/personal/why/text/'
-    output_file = '/mnt/data/cpfs/cfps/personal/why/eval_text_methods_results_GNED.json'
+    folder_path = './eval_results/paddleocr_results'
+    output_file = './eval_results/eval_text_methods_results_GNED.json'
+
+    # # Get all json files in the folder
+    # json_files = [f for f in os.listdir(folder_path) if f.endswith('.json')]
     
-    # Get all json files in the folder
-    json_files = [f for f in os.listdir(folder_path) if f.endswith('.json')]
+    # all_results = []
     
+    # for json_file in json_files:
+    #     file_path = os.path.join(folder_path, json_file)
+    #     print(f"Processing {json_file}...")
+    #     result = process_json_file(file_path)
+    #     all_results.append(result)
+
+    # 初始化空列表，用来存储所有的 json 文件
+    json_files = []
+
     all_results = []
-    
+
+    # 遍历 base_path 中的所有子文件夹
+    for subdir in os.listdir(folder_path):
+        subdir_path = os.path.join(folder_path, subdir)  # 获取子文件夹路径
+
+        # 检查是否是文件夹
+        if os.path.isdir(subdir_path):
+            # 使用列表推导式找出所有以 .json 结尾的文件，并将其添加到 json_files 列表中
+            json_files.extend([f for f in os.listdir(subdir_path) if f.endswith('.json')])
+            
     for json_file in json_files:
-        file_path = os.path.join(folder_path, json_file)
-        print(f"Processing {json_file}...")
+        file_path = os.path.join(subdir_path, json_file)
+        print(f"Processing {subdir_path}/{json_file}...")
         result = process_json_file(file_path)
+        print(f'file_path: {file_path}')
         all_results.append(result)
     
     # Save all results to a new json file
